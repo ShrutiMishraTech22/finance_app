@@ -13,7 +13,7 @@ class _UpcomingBillsPageState extends State<UpcomingBillsPage> {
   @override
   void initState() {
     super.initState();
-    billsBox = Hive.box('upcoming_bills');
+    billsBox = Hive.box('bills');
   }
 
   void _addBillDialog() {

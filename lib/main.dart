@@ -11,6 +11,8 @@ void main() async {
   await Hive.openBox('income');
   await Hive.openBox('bills');
   await Hive.openBox('expense');
+  await Hive.openBox('alerts');
+  await Hive.openBox('auth');
 
   runApp(MyApp());
 }

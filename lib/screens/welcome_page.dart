@@ -26,9 +26,9 @@ class _WelcomePageState extends State<WelcomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 100),
+              SizedBox(height: 60),
               Text(
-                'Finance',
+                'FINANCE',
                 style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -38,22 +38,18 @@ class _WelcomePageState extends State<WelcomePage> {
               GestureDetector(
                 onTap: _revealLogin,
                 child: Text(
-                  "Let's get started",
-                  style: TextStyle(fontSize: 18, color: Colors.blue),
+                  "LET'S GET STARTED",
+                  style: TextStyle(fontSize: 18, color: Colors.lightBlueAccent, fontWeight: FontWeight.bold, fontFamily: 'Helvetica'),
                 ),
               ),
               SizedBox(height: 20),
               AnimatedContainer(
                 duration: Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
-                height: _showLogin ? 180 : 0,
+                height: _showLogin ? 150 : 0,
                 padding: EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: _showLogin ? 20 : 0,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
                 child: _showLogin
                     ? Column(
@@ -64,8 +60,15 @@ class _WelcomePageState extends State<WelcomePage> {
                         context,
                         MaterialPageRoute(builder: (_) => LoginPage()),
                       ),
-                      child: Text('Login with PIN'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 22),
+                        shape: StadiumBorder(),
+                        backgroundColor: Colors.tealAccent,
+                        textStyle: TextStyle(fontSize: 18),
+                      ),
+                      child: Text('LOGIN WITH PIN', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                     ),
+
                     SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -77,11 +80,11 @@ class _WelcomePageState extends State<WelcomePage> {
                             MaterialPageRoute(builder: (_) => SignUpPage()),
                           ),
                           child: Text(
-                            'Sign up',
+                            'SIGN UP',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: Colors.indigo,
                               fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),

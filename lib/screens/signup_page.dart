@@ -14,48 +14,73 @@ class _SignUpPageState extends State<SignUpPage> {
   final _confirmPinController = TextEditingController();
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
-  String? _selectedGender;
   final _contactController = TextEditingController();
+  String? _selectedGender;
 
-  String _successMessage = ''; // To store the success message
+  String _successMessage = '';
 
- Future <void> _signUp() async{
+  Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
-      // Check if the PINs match
+      // Ensure PIN and confirm PIN match
       if (_pinController.text != _confirmPinController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("PINs do not match")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("PINs do not match")),
+        );
         return;
       }
 
-      // Open Hive box and save the user data along with PIN
       final usersBox = Hive.box('users');
 
-      usersBox.put(_contactController.text.trim(), {
+      final contactKey = _contactController.text.trim();
+
+      // Check if contact already exists (unique key)
+      if (usersBox.containsKey(contactKey)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User with this contact already exists")),
+        );
+        return;
+      }
+
+      // Save user data with contact number as key
+      await usersBox.put(contactKey, {
         'name': _nameController.text.trim(),
         'age': _ageController.text.trim(),
         'sex': _selectedGender,
         'pin': _pinController.text.trim(),
       });
 
-// Save a flag that user has signed up (in a separate box)
+      // Optionally save signup status or other settings
       final settingsBox = await Hive.openBox('settings');
       settingsBox.put('isSignedUp', true);
 
-// Navigate to home directly
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()),
-      );
-
-      // Display success message
       setState(() {
         _successMessage = 'Account successfully created!';
       });
 
-      // Optionally show a message
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Account Created Successfully!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Account Created Successfully!")),
+      );
 
-      // Reset form after submission (Optional)
+      // Navigate to home page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomePage()),
+      );
+
+      // Reset form if you want
       _formKey.currentState!.reset();
+      _selectedGender = null;
     }
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmPinController.dispose();
+    _nameController.dispose();
+    _ageController.dispose();
+    _contactController.dispose();
+    super.dispose();
   }
 
   @override
@@ -71,39 +96,32 @@ class _SignUpPageState extends State<SignUpPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(labelText: 'Name'),
-                validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
+                validator: (value) =>
+                value!.isEmpty ? 'Please enter your name' : null,
               ),
-
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(labelText: 'Sex'),
                 value: _selectedGender,
-                items: ['Male', 'Female', 'Other'].map((gender) {
-                  return DropdownMenuItem(
-                    value: gender,
-                    child: Text(gender),
-                  );
-                }).toList(),
+                items: ['Male', 'Female', 'Other']
+                    .map((gender) => DropdownMenuItem(
+                  value: gender,
+                  child: Text(gender),
+                ))
+                    .toList(),
                 onChanged: (value) {
                   setState(() {
                     _selectedGender = value;
                   });
                 },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select an option';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                (value == null || value.isEmpty) ? 'Please select an option' : null,
               ),
-
               TextFormField(
                 controller: _ageController,
                 decoration: InputDecoration(labelText: 'Age'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Age is required';
-                  }
+                  if (value == null || value.isEmpty) return 'Age is required';
                   final age = int.tryParse(value);
                   if (age == null || age < 1 || age > 120) {
                     return 'Enter a valid age';
@@ -111,40 +129,33 @@ class _SignUpPageState extends State<SignUpPage> {
                   return null;
                 },
               ),
-
               TextFormField(
                 controller: _contactController,
                 decoration: InputDecoration(labelText: 'Contact Number'),
                 keyboardType: TextInputType.phone,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Contact number is required';
-                  } else if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+                  if (value == null || value.isEmpty) return 'Contact number is required';
+                  if (!RegExp(r'^[0-9]{10}$').hasMatch(value)) {
                     return 'Enter a valid 10-digit phone number';
                   }
                   return null;
                 },
               ),
-
               TextFormField(
                 controller: _pinController,
                 obscureText: true,
                 decoration: InputDecoration(labelText: '4-digit PIN'),
                 keyboardType: TextInputType.number,
-                inputFormatters: [LengthLimitingTextInputFormatter(4),
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(4),
                   FilteringTextInputFormatter.digitsOnly,
                 ],
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'PIN is required';
-                  } else if (value.length != 4) {
-                    return 'PIN must be 4 digits';
-                  }
+                  if (value == null || value.isEmpty) return 'PIN is required';
+                  if (value.length != 4) return 'PIN must be 4 digits';
                   return null;
                 },
               ),
-
-
               TextFormField(
                 controller: _confirmPinController,
                 obscureText: true,
@@ -161,11 +172,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   return null;
                 },
               ),
-
-
               SizedBox(height: 20),
               ElevatedButton(onPressed: _signUp, child: Text('Sign Up')),
-              // Show success message below the button
               if (_successMessage.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 20.0),
