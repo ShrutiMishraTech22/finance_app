@@ -13,7 +13,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _ageController = TextEditingController();
   String? _selectedGender;
   final _contactController = TextEditingController();
@@ -30,21 +29,11 @@ class _SignUpPageState extends State<SignUpPage> {
 
       // Open Hive box and save the user data along with PIN
       final usersBox = Hive.box('users');
-      final email = _emailController.text.trim();
 
-      if (usersBox.containsKey(email)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("User already exists!")),
-        );
-        return;
-      }
-
-      usersBox.put(_emailController.text.trim(), {
+      usersBox.put(_contactController.text.trim(), {
         'name': _nameController.text.trim(),
-        'email': email,
         'age': _ageController.text.trim(),
         'sex': _selectedGender,
-        'contact': _contactController.text.trim(),
         'pin': _pinController.text.trim(),
       });
 
@@ -53,9 +42,7 @@ class _SignUpPageState extends State<SignUpPage> {
       settingsBox.put('isSignedUp', true);
 
 // Navigate to home directly
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()),
       );
 
       // Display success message
@@ -85,19 +72,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: _nameController,
                 decoration: InputDecoration(labelText: 'Name'),
                 validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
-              ),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Email is required';
-                  } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
               ),
 
               DropdownButtonFormField<String>(

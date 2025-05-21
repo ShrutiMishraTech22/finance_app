@@ -14,58 +14,42 @@ class _LoginPageState extends State<LoginPage> {
     final usersBox = Hive.box('users');
     final pin = _pinController.text.trim();
 
-    final userEntry = usersBox.values.firstWhere(
-          (user) => user['pin'].toString() == pin, // Compare as String
-      orElse: () => null,
+    final userEntry = usersBox.values.cast<Map>().firstWhere(
+          (user) => user['pin'].toString() == pin,
+      orElse: () => {},
     );
 
     if (userEntry != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login successful!")));
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => HomePage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final tween = Tween(begin: 0.0, end: 1.0);
-            final fadeAnimation = animation.drive(tween);
-
-            return FadeTransition(
-              opacity: fadeAnimation,
-              child: child,
-            );
-          },
-          transitionDuration: Duration(milliseconds: 600),
-        ),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invalid PIN")));
     }
   }
-
-  String _loginMessage = '';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Login')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
               controller: _pinController,
               obscureText: true,
-              decoration: InputDecoration(labelText: 'PIN'),
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: InputDecoration(
+                labelText: 'Enter 4-digit PIN',
+                counterText: '', // hides the character counter
+              ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _login,
               child: Text('Login'),
             ),
-            SizedBox(height: 20),
-            // Display success message after login
-            if (_loginMessage.isNotEmpty)
-              Text(_loginMessage, style: TextStyle(fontSize: 18, color: Colors.green)),
           ],
         ),
       ),

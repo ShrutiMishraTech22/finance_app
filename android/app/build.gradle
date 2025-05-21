@@ -2,9 +2,9 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'com.google.gms.google-services' // Optional if Firebase used
-    id 'dev.flutter.flutter-gradle-plugin'
+
 }
+
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')

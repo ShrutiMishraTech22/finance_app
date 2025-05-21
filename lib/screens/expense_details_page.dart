@@ -1,37 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
-class IncomeDetailsPage extends StatefulWidget {
-  final List<Map<String, dynamic>> incomes;
+class ExpenseDetailsPage extends StatefulWidget {
+  final List<Map<String, dynamic>> expenses;
 
-  IncomeDetailsPage({required this.incomes});
+  const ExpenseDetailsPage({Key? key, required this.expenses}) : super(key: key);
 
   @override
-  State<IncomeDetailsPage> createState() => _IncomeDetailsPageState();
+  State<ExpenseDetailsPage> createState() => _ExpenseDetailsPageState();
 }
 
-class _IncomeDetailsPageState extends State<IncomeDetailsPage> {
-  late Box incomeBox;
+class _ExpenseDetailsPageState extends State<ExpenseDetailsPage> {
+  late Box expenseBox;
 
   @override
   void initState() {
     super.initState();
-    incomeBox = Hive.box('income');
+    expenseBox = Hive.box('expense');
   }
 
-  void _showEditDialog(int index, Map<String, dynamic> income) {
+  void _showEditDialog(int index, Map<String, dynamic> expense) {
     final _amountController =
-    TextEditingController(text: income['amount'].toString());
-    final _sourceController =
-    TextEditingController(text: income['source'] ?? '');
+    TextEditingController(text: expense['amount'].toString());
+    final _noteController =
+    TextEditingController(text: expense['note'] ?? '');
+    String selectedCategory = expense['category'] ?? 'Miscellaneous';
     DateTime selectedDate =
-        DateTime.tryParse(income['date'] ?? '') ?? DateTime.now();
+        DateTime.tryParse(expense['date'] ?? '') ?? DateTime.now();
+
+    final categories = [
+      'Food',
+      'Fees',
+      'Transport',
+      'Entertainment',
+      'Education',
+      'Miscellaneous'
+    ];
 
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text("Edit Income"),
+          title: Text("Edit Expense"),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -41,9 +51,18 @@ class _IncomeDetailsPageState extends State<IncomeDetailsPage> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(labelText: 'Amount'),
                 ),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: InputDecoration(labelText: 'Category'),
+                  items: categories
+                      .map((cat) =>
+                      DropdownMenuItem(value: cat, child: Text(cat)))
+                      .toList(),
+                  onChanged: (val) => setState(() => selectedCategory = val!),
+                ),
                 TextField(
-                  controller: _sourceController,
-                  decoration: InputDecoration(labelText: 'Source'),
+                  controller: _noteController,
+                  decoration: InputDecoration(labelText: 'Note'),
                 ),
                 Row(
                   children: [
@@ -71,7 +90,7 @@ class _IncomeDetailsPageState extends State<IncomeDetailsPage> {
           actions: [
             TextButton(
               onPressed: () {
-                incomeBox.deleteAt(index);
+                expenseBox.deleteAt(index);
                 Navigator.pop(context);
                 setState(() {}); // Refresh list
               },
@@ -81,10 +100,11 @@ class _IncomeDetailsPageState extends State<IncomeDetailsPage> {
               onPressed: () {
                 final updated = {
                   'amount': double.tryParse(_amountController.text) ?? 0.0,
-                  'source': _sourceController.text,
+                  'category': selectedCategory,
+                  'note': _noteController.text,
                   'date': selectedDate.toIso8601String(),
                 };
-                incomeBox.putAt(index, updated);
+                expenseBox.putAt(index, updated);
                 Navigator.pop(context);
                 setState(() {}); // Refresh list
               },
@@ -98,20 +118,24 @@ class _IncomeDetailsPageState extends State<IncomeDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final updatedIncomes =
-    incomeBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
+    final updatedExpenses =
+    expenseBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text('Income Details')),
+      appBar: AppBar(title: Text('Expense Details')),
       body: ListView.builder(
-        itemCount: updatedIncomes.length,
+        itemCount: updatedExpenses.length,
         itemBuilder: (context, index) {
-          final income = updatedIncomes[index];
+          final expense = updatedExpenses[index];
           return ListTile(
-            title: Text('₹${income['amount']} - ${income['source']}'),
-            subtitle: Text('Date: ${DateTime.parse(income['date']).toLocal().toString().split(' ')[0]}'),
-            leading: Icon(Icons.arrow_downward, color: Colors.green),
-            onTap: () => _showEditDialog(index, income),
+            title: Text('₹${expense['amount'].toStringAsFixed(2)}'),
+            subtitle: Text('${expense['note'] ?? ''} • ${expense['category'] ?? ''}'),
+            trailing: Text(
+              expense['date'] != null
+                  ? DateTime.parse(expense['date']).toLocal().toString().split(' ')[0]
+                  : '',
+            ),
+            onTap: () => _showEditDialog(index, expense),
           );
         },
       ),

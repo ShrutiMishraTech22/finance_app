@@ -1,11 +1,10 @@
+import 'package:finance/screens/income_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'upcoming_bills_page.dart';
 import 'transaction_history_page.dart';
-late Box billsBox;
-late Box incomeBox;
-
+import 'expense_details_page.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -13,90 +12,202 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late List<double> dailyExpenses;
   List<Map<String, dynamic>> incomeRecords = [];
   late Box billsBox;
+  late Box incomeBox;
+  late Box expenseBox;
 
-  double get totalExpense => dailyExpenses.fold(0, (a, b) => a + b);
-  double get totalIncome => incomeRecords.fold(0, (sum, e) => sum + e['amount']);
+  List<double> dailyExpenses = List.filled(7, 0.0);
 
   bool showMenu = false;
 
   @override
   void initState() {
     super.initState();
+
     incomeBox = Hive.box('income');
+    billsBox = Hive.box('bills');
+    expenseBox = Hive.box('expense');
 
-    incomeRecords = incomeBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
+    _reloadData();
 
-    final expenseBox = Hive.box('expenses');
-    billsBox = Hive.box('bills'); // <-- Initialize billsBox here
+    incomeBox.watch().listen((event) => _reloadData());
+    expenseBox.watch().listen((event) => _reloadData());
+  }
 
-    final today = DateTime.now();
-    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+  void _reloadData() {
+    incomeRecords = incomeBox.values
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
-    dailyExpenses = List.generate(7, (_) => 0.0);
+    dailyExpenses = List.filled(7, 0.0);
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
 
     for (var expense in expenseBox.values) {
       final date = DateTime.tryParse(expense['date'] ?? '');
       final amount = double.tryParse(expense['amount'].toString()) ?? 0.0;
-
       if (date != null &&
-          date.isAfter(weekStart.subtract(Duration(days: 1))) &&
-          date.isBefore(today.add(Duration(days: 1)))) {
-        final index = date.weekday - 1; // Monday is 1
+          !date.isBefore(weekStart) &&
+          !date.isAfter(weekStart.add(Duration(days: 6)))) {
+        int index = date.weekday - 1;
         dailyExpenses[index] += amount;
       }
     }
+
+    setState(() {});
   }
+
+  double get totalExpense {
+    final now = DateTime.now();
+    double monthlyTotal = 0;
+    for (var expense in expenseBox.values) {
+      final date = DateTime.tryParse(expense['date'] ?? '');
+      final amount = double.tryParse(expense['amount'].toString()) ?? 0.0;
+      if (date != null && date.year == now.year && date.month == now.month) {
+        monthlyTotal += amount;
+      }
+    }
+    return monthlyTotal;
+  }
+
+  double get totalIncome => incomeRecords.fold(0, (sum, e) => sum + (e['amount'] ?? 0));
 
   void _addRecordDialog(String type) {
     final _amountController = TextEditingController();
     final _noteController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+    String selectedCategory = 'Food';  // default category
+    final categories = ['Food', 'Fees', 'Transport', 'Entertainment', 'Education', 'Miscellaneous'];
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Add $type'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Amount'),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Add $type'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (type == 'Expense') ...[
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    decoration: InputDecoration(labelText: 'Category'),
+                    items: categories.map((cat) {
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Text(cat),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) setState(() => selectedCategory = value);
+                    },
+                  ),
+                ],
+                TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: 'Amount'),
+                ),
+                TextField(
+                  controller: _noteController,
+                  decoration: InputDecoration(
+                      labelText: type == 'Expense' ? 'Note' : 'Source'),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text('Date: ${selectedDate.toLocal().toString().split(' ')[0]}'),
+                    Spacer(),
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                      child: Text('Select Date'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextField(
-              controller: _noteController,
-              decoration: InputDecoration(labelText: 'Note'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.blue),
-            onPressed: () {
-              double? amount = double.tryParse(_amountController.text);
-              if (amount != null) {
-                setState(() {
-                  if (type == 'Expense') {
-                    dailyExpenses[dailyExpenses.length - 1] += amount;
-                  } else {
-                    incomeRecords.add({
-                      'amount': amount,
-                      'source': _noteController.text,
-                      'date': DateTime.now().toString().split(' ')[0]
-                    });
+            actions: [
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                onPressed: () async {
+                  double? amount = double.tryParse(_amountController.text);
+                  if (amount != null) {
+                    final dateStr = selectedDate.toIso8601String();
+                    if (type == 'Expense') {
+                      await expenseBox.add({
+                        'amount': amount,
+                        'date': dateStr,
+                        'category': selectedCategory,
+                        'note': _noteController.text,
+                      });
+                    } else {
+                      await incomeBox.add({
+                        'amount': amount,
+                        'source': _noteController.text,
+                        'date': dateStr,
+                      });
+                    }
+                    Navigator.pop(context);
                   }
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Add'),
-          )
+                },
+                child: Text('Add'),
+              )
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  double get balance => totalIncome - totalExpense;
+
+
+  Widget _summaryRow(String label, dynamic value, Color bgColor) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration:
+      BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 16)),
+          Text(
+            value is double ? '₹ ${value.toStringAsFixed(2)}' : value.toString(),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
+  }
+
+  String _getNextBillText(List<Map> bills) {
+    final now = DateTime.now();
+    final upcoming = bills.where((bill) {
+      final dueDate = DateTime.tryParse(bill['dueDate'] ?? '');
+      return dueDate != null &&
+          dueDate.isAfter(now) &&
+          dueDate.isBefore(now.add(Duration(days: 7)));
+    }).toList();
+
+    if (upcoming.isEmpty) return "No due in 7 days";
+
+    upcoming.sort((a, b) =>
+        DateTime.parse(a['dueDate']).compareTo(DateTime.parse(b['dueDate'])));
+    final next = upcoming.first;
+    return "${next['desc']} - ₹${next['amount']}";
   }
 
   @override
@@ -136,7 +247,9 @@ class _HomePageState extends State<HomePage> {
                   applicationName: 'Finance Tracker',
                   applicationVersion: '1.0.0',
                   applicationLegalese: '© 2025 SHRUTI MISHRA',
-                  children: [Text('This app helps students track expenses and income.')],
+                  children: [
+                    Text('This app helps students track expenses and income.')
+                  ],
                 );
               },
             ),
@@ -145,10 +258,8 @@ class _HomePageState extends State<HomePage> {
               title: Text('Transaction History'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => TransactionHistoryPage()),
-                );
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => TransactionHistoryPage()));
               },
             ),
           ],
@@ -159,79 +270,145 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ListView(
+              physics: AlwaysScrollableScrollPhysics(),
               children: [
-                Text("Weekly Expenses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text("Weekly Expenses",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 SizedBox(height: 20),
+
+                // Chart Section
                 SizedBox(
-                  height: 200,
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: 250,
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: true),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                              if (value.toInt() >= 0 && value.toInt() < days.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(days[value.toInt()]),
-                                );
-                              } else {
-                                return Text('');
-                              }
-                            },
+                  height: 250,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: 300,
+                        barGroups: List.generate(7, (i) {
+                          return BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: dailyExpenses[i],
+                                color: Colors.green,
+                                width: 18,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          );
+                        }),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true),
                           ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                if (value.toInt() < days.length) {
+                                  return Text(days[value.toInt()]);
+                                }
+                                return Text('');
+                              },
+                            ),
+                          ),
+                          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         ),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        gridData: FlGridData(show: true),
+                        borderData: FlBorderData(show: false),
                       ),
-                      barGroups: dailyExpenses.asMap().entries.map((entry) {
-                        return BarChartGroupData(
-                          x: entry.key,
-                          barRods: [BarChartRodData(toY: entry.value, color: Colors.green)],
-                        );
-                      }).toList(),
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
-                Tooltip(
-                  message: "This month",
-                  child: _summaryRow('Total Expense', totalExpense, Colors.green[50]!),
+
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[50],  // light purple background (you can change color)
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Balance',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '₹ ${balance.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple[800],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 10),
+
+                SizedBox(height: 20),
+
+                // Total Expense
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => TotalIncomePage(incomeRecords)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ExpenseDetailsPage(
+                          expenses: expenseBox.values
+                              .map((e) => Map<String, dynamic>.from(e))
+                              .toList(),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Tooltip(
+                    message: "Click to view expense records",
+                    child: _summaryRow('Total Expense', totalExpense, Colors.green[50]!),
+                  ),
+                ),
+
+                SizedBox(height: 10),
+
+                // Total Income
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => IncomeDetailsPage(incomes: incomeRecords),
+                      ),
+                    );
                   },
                   child: Tooltip(
                     message: "Click to view income records",
                     child: _summaryRow('Total Income', totalIncome, Colors.blue[50]!),
                   ),
                 ),
+
                 SizedBox(height: 20),
+
+                // Upcoming Bills
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => UpcomingBillsPage()));
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => UpcomingBillsPage()));
                   },
                   child: Tooltip(
                     message: "Tap to view all upcoming bills",
                     child: _summaryRow(
-                      'Upcoming Bills',
-                      _getNextBillText(upcomingBills),
-                      Colors.orange[50]!,
-                    ),
+                        'Upcoming Bills', _getNextBillText(upcomingBills), Colors.orange[50]!),
                   ),
                 ),
               ],
             ),
           ),
+
+          // Floating action buttons
           Positioned(
             top: 16,
             right: 16,
@@ -270,66 +447,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryRow(String label, dynamic value, Color bgColor) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 16)),
-          Text(
-            value is double ? '₹ ${value.toStringAsFixed(2)}' : value.toString(),
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
-  }
-
-  String _getNextBillText(List<Map> bills) {
-    final now = DateTime.now();
-    final upcoming = bills.where((bill) {
-      final dueDate = DateTime.tryParse(bill['dueDate'] ?? '');
-      return dueDate != null && dueDate.isAfter(now) && dueDate.isBefore(now.add(Duration(days: 7)));
-    }).toList();
-
-    if (upcoming.isEmpty) return "No due in 7 days";
-
-    upcoming.sort((a, b) => DateTime.parse(a['dueDate']).compareTo(DateTime.parse(b['dueDate'])));
-    final next = upcoming.first;
-    return "${next['desc']} - ₹${next['amount']}";
-  }
-}
-
-class TotalIncomePage extends StatelessWidget {
-  late Box incomeBox;
-  List<Map<String, dynamic>> incomeRecords = [];
-  TotalIncomePage(this.incomeRecords);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Total Income')),
-      body: incomeRecords.isEmpty
-          ? Center(child: Text('No income records yet.'))
-          : ListView.builder(
-        itemCount: incomeRecords.length,
-        itemBuilder: (context, index) {
-          final record = incomeRecords[index];
-          return ListTile(
-            leading: Icon(Icons.attach_money, color: Colors.green),
-            title: Text('₹ ${record['amount']}'),
-            subtitle: Text('${record['source']} - ${record['date']}'),
-          );
-        },
-      ),
-    );
-  }
-}
+  }}
