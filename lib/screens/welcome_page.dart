@@ -28,7 +28,7 @@ class _WelcomePageState extends State<WelcomePage> {
             children: [
               SizedBox(height: 60),
               Text(
-                'FINANCE',
+                'FinSage',
                 style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),

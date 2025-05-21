@@ -102,7 +102,7 @@ class _SignUpPageState extends State<SignUpPage> {
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(labelText: 'Sex'),
                 value: _selectedGender,
-                items: ['Male', 'Female', 'Other']
+                items: ['Male', 'Female', 'Prefer Not to Say']
                     .map((gender) => DropdownMenuItem(
                   value: gender,
                   child: Text(gender),

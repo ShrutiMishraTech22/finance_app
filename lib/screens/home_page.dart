@@ -210,7 +210,7 @@ class _HomePageState extends State<HomePage> {
     maxY = (maxY / 100).ceil() * 100; // round up to next 100
     if (maxY < 200) maxY = 200;
     return Scaffold(
-      appBar: AppBar(title: Text('Finance Dashboard')),
+      appBar: AppBar(title: Text('FINANCE DASHBOARD')),
       drawer: Drawer(
         child: ListView(
           children: [
@@ -225,8 +225,8 @@ class _HomePageState extends State<HomePage> {
                     backgroundColor: Colors.white,
                   ),
                   SizedBox(height: 10),
-                  Text('Finance Tracker', style: TextStyle(color: Colors.white, fontSize: 18)),
-                  Text('by Your Name', style: TextStyle(color: Colors.white70)),
+                  Text('FinSage', style: TextStyle(color: Colors.white, fontSize: 18)),
+                  Text('by Shruti Mishra', style: TextStyle(color: Colors.white70)),
                 ],
               ),
             ),
@@ -237,10 +237,16 @@ class _HomePageState extends State<HomePage> {
                 Navigator.pop(context);
                 showAboutDialog(
                   context: context,
-                  applicationName: 'Finance Tracker',
+                  applicationName: 'FinSage',
                   applicationVersion: '1.0.0',
                   applicationLegalese: '© 2025 SHRUTI MISHRA',
-                  children: [Text('This app helps students track expenses and income.')],
+                  children: [
+                    Text(
+                        'FinSage is a personal finance management app designed especially for students. '
+                            'It helps track income, monitor expenses, set alerts, and stay organized with upcoming bills. '
+                            'With a simple and intuitive interface, FinSage empowers students to take control of their finances effectively.'
+                    ),
+                  ],
                 );
               },
             ),
