@@ -446,7 +446,7 @@ class _HomePageState extends State<HomePage> {
               elevation: 6,
               child: PopupMenuButton<String>(
                 icon: Icon(Icons.add, color: Colors.white),
-                color: Color(0xFFB39DDB).withOpacity(0.95), // lilac background for menu
+                color: Colors.purpleAccent[100], // lilac background for menu
                 onSelected: (value) {
                   if (value == 'Expense') {
                     _addRecordDialog('Expense');
